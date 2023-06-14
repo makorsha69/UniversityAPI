@@ -9,5 +9,6 @@ namespace UniversityAPI.Data_Context
         {
         }
         public DbSet<University> University { get; set; }
+        public DbSet<User> User { get; set; }
     }
 }
