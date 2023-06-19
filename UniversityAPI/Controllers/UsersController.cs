@@ -2,16 +2,20 @@
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Net.Mail;
 using System.Security.Claims;
-using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MimeKit;
+using MailKit.Net.Smtp;
+using MimeKit.Text;
 using UniversityAPI.Data_Context;
 using UniversityAPI.Models;
+using System.Text;
 
 namespace UniversityAPI.Controllers
 {
@@ -101,7 +105,8 @@ namespace UniversityAPI.Controllers
             return CreatedAtAction("GetUser", new { id = user.UserId }, user);
         }
 
-        [HttpGet("email={email}")]
+        #region GetUserbyEmail
+        [HttpGet("GetUserbyEmail")]
         public async Task<ActionResult<User>> GetUserbyEmail(string email)
         {
             var user = await _context.User.FirstOrDefaultAsync(q => q.Email == email);
@@ -113,7 +118,44 @@ namespace UniversityAPI.Controllers
 
             return user;
         }
+        #endregion
 
+
+        #region ApproveUser
+        [HttpGet("ApproveUser")]
+        public async Task<ActionResult<User>> ApproveUser(string email)
+        {
+            var user = await _context.User.FirstOrDefaultAsync(q => q.Email == email);
+
+            if (user != null && user.Access == false)
+            {
+                user.Access = true;
+                user.Status = "Approved";
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(user);
+        }
+        #endregion
+
+        #region RejectUser
+        [HttpGet("RejectUser")]
+        public async Task<ActionResult<User>> RejectUser(string email)
+        {
+            var user = await _context.User.FirstOrDefaultAsync(q => q.Email == email);
+
+            if (user != null)
+            {
+                user.Access = false;
+                user.Status = "Rejected";
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(user);
+        }
+        #endregion
+
+        #region DeleteUser
         // DELETE: api/Users/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
@@ -133,13 +175,14 @@ namespace UniversityAPI.Controllers
 
             return NoContent();
         }
+        #endregion
 
         private bool UserExists(int id)
         {
             return (_context.User?.Any(e => e.UserId == id)).GetValueOrDefault();
         }
 
-        #region LoginController
+        #region Login
         [HttpPost]
         [Route("login")]
         public async Task<IActionResult> Login(Login model)
@@ -182,6 +225,28 @@ namespace UniversityAPI.Controllers
             return user;
         }
 
+        #endregion
+
+        #region EmailService
+        [HttpGet("EmailService")]
+
+        public IActionResult SendEmail(string name, string reciever)
+        {
+            string body = "Dear Sir/Ma'am, \n\n Hello " + name + ".Your email id " + reciever + " is succesfully registered with LOCOMOTIVE Railway Services \n\n Regards,\n Locomotive Railway Services Ltd.";
+            var email = new MimeMessage();
+            email.From.Add(MailboxAddress.Parse("system.railwayinfo@gmail.com"));
+            email.To.Add(MailboxAddress.Parse(reciever));
+            email.Subject = "Registration comfirmation mail.";
+            email.Body = new TextPart(TextFormat.Plain) { Text = body };
+
+            using var smtp = new MailKit.Net.Smtp.SmtpClient();
+            smtp.Connect("smtp.gmail.com", 587, MailKit.Security.SecureSocketOptions.StartTls);
+            smtp.Authenticate("system.railwayinfo@gmail.com ", "ruxidhbnmxoyoynz");
+            smtp.Send(email);
+            smtp.Disconnect(true);
+
+            return Ok("200");
+        }
         #endregion
 
     }
